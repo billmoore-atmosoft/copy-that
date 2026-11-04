@@ -53,8 +53,8 @@ class TestConfigValidation:
         with pytest.raises(ValueError, match="models folder"):
             validate_settings(config)
 
-    def test_settings_refuse_a_synced_take_folder(self, tmp_path):
-        config = {**DEFAULT_CONFIG, "take_log_enabled": True, "take_log_dir": str(tmp_path / "OneDrive" / "takes")}
+    def test_settings_refuse_a_synced_take_folder(self):
+        config = {**DEFAULT_CONFIG, "take_log_enabled": True, "take_log_dir": "C:/Users/someone/OneDrive/takes"}
         with pytest.raises(ValueError, match="cloud-synced"):
             validate_settings(config)
 
