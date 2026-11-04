@@ -1,0 +1,29 @@
+# Core - OpenVINO inference
+openvino==2026.4.1
+openvino-genai==2026.4.1.0
+
+# Pre-exported model download (setup only)
+huggingface_hub==2.2.0
+
+# Parakeet TDT preprocessing
+onnxruntime>=1.18.1
+
+# Audio
+sounddevice
+numpy
+webrtcvad-wheels==2.0.14.post1
+
+# Input/output
+pyperclip
+comtypes>=1.4  # UI Automation: focused field and caret
+winrt-Windows.Media.Control==3.2.1  # Pause playing media while dictating
+winrt-Windows.Foundation==3.2.1
+winrt-Windows.Foundation.Collections==3.2.1
+
+# GUI
+pystray>=0.19
+customtkinter>=5.2
+Pillow>=10.0
+
+# Testing
+pytest

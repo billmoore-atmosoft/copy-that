@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project runtime files (created in ~/.copythat/)
+*.log
+models/
+config.json
+CLAUDE.md
+.claude/
+
+# Environment files
+.env
+*.env
+
+# Windows artifacts
+nul
+
+# Git worktrees
+.worktrees/
+
+# Local verification and personal replay data
+.runtime/
+.test-temp/
+.pytest_cache/
+benchmark-results/
+takes/
+*.wav

@@ -1,0 +1,86 @@
+"""Dynamic icon generation for system tray states using Pillow."""
+
+from PIL import Image, ImageDraw
+
+ICON_SIZE = 64
+APP_ICON_COLOR = "#2F6FDE"
+CHECK_COLOR = "#FFD43B"
+
+
+def render_app_icon(size, color=APP_ICON_COLOR):
+    """A round speech bubble with a check: "copy that", heard and confirmed."""
+    ss = 600  # Draw large so the check stays crisp at 16px
+    img = Image.new("RGBA", (ss, ss), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    # A wide oval and a long tail to the corner, so it still reads as a bubble at 16px.
+    draw.ellipse([40, 20, 590, 420], fill=color)
+    draw.polygon([(110, 330), (0, 600), (300, 400)], fill=color)
+    draw.line([(190, 225), (290, 315), (460, 140)], fill=CHECK_COLOR, width=78, joint="curve")
+    return img.resize((size, size), Image.LANCZOS)
+
+
+def save_app_icon(path):
+    """Write a multi-size Windows .ico for the executable and installer."""
+    sizes = [16, 20, 24, 32, 40, 48, 64, 128, 256]
+    render_app_icon(256).save(path, sizes=[(s, s) for s in sizes])
+
+
+def _app_icon_with_status(dot_color, show_x=False):
+    """App icon with a colored status dot in the bottom-right corner."""
+    base = render_app_icon(ICON_SIZE)
+    draw = ImageDraw.Draw(base)
+
+    # Status dot: 20px diameter with 2px white outline
+    dot_d = 20
+    outline_w = 2
+    x2 = ICON_SIZE - 2
+    y2 = ICON_SIZE - 2
+    x1 = x2 - dot_d
+    y1 = y2 - dot_d
+
+    # White outline ring
+    draw.ellipse([x1 - outline_w, y1 - outline_w,
+                  x2 + outline_w, y2 + outline_w], fill="white")
+    # Colored fill
+    draw.ellipse([x1, y1, x2, y2], fill=dot_color)
+
+    if show_x:
+        m = 5
+        draw.line([x1 + m, y1 + m, x2 - m, y2 - m], fill="white", width=2)
+        draw.line([x2 - m, y1 + m, x1 + m, y2 - m], fill="white", width=2)
+
+    return base
+
+
+def icon_loading() -> Image.Image:
+    """App icon with gray status dot — model loading."""
+    return _app_icon_with_status("#808080")
+
+
+def icon_ready() -> Image.Image:
+    """Plain app icon — ready for recording. A green dot would blur into the check."""
+    return render_app_icon(ICON_SIZE)
+
+
+def icon_recording() -> Image.Image:
+    """App icon with red status dot — microphone active."""
+    return _app_icon_with_status("#EF4444")
+
+
+def icon_processing() -> Image.Image:
+    """App icon with orange status dot — transcribing (yellow would match the check)."""
+    return _app_icon_with_status("#F97316")
+
+
+def icon_error() -> Image.Image:
+    """App icon with red status dot + white X — error state."""
+    return _app_icon_with_status("#EF4444", show_x=True)
+
+
+STATE_ICONS = {
+    "loading": icon_loading,
+    "ready": icon_ready,
+    "recording": icon_recording,
+    "processing": icon_processing,
+    "error": icon_error,
+}
