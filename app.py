@@ -17,7 +17,7 @@ from pathlib import Path
 from dictation_engine import (
     AppState, CLEANUP_REGISTRY, DictationApp, MODEL_REGISTRY, MODEL_DIR,
     load_config, save_config, validate_config, validate_settings, log, create_model,
-    is_cleanup_downloaded, is_model_downloaded,
+    is_cleanup_downloaded, is_model_downloaded, launch_device,
 )
 from model_store import Downloads, installed, remove
 from version import VERSION, label as version_label
@@ -226,7 +226,7 @@ class GUIApp:
         if not self._first_run:
             return
         if key == "speech:parakeet":
-            self._config.update(model_size="parakeet", device=MODEL_REGISTRY["parakeet"]["preferred_device"])
+            self._config.update(model_size="parakeet", device=launch_device({**self._config, "model_size": "parakeet"}))
             save_config(self._config)
             self._tray.update_info(device=self._config["device"], model="parakeet", hotkey=self._config["hotkey"])
             self._restart_engine()
@@ -505,8 +505,7 @@ def main():
 
     # Auto-select device if not explicitly overridden
     if not args.device:
-        model_info = MODEL_REGISTRY[config["model_size"]]
-        preferred = model_info["preferred_device"]
+        preferred = launch_device(config)
         if config["device"] != preferred:
             log(f"Auto-selecting {preferred} for {config['model_size']}")
             config["device"] = preferred

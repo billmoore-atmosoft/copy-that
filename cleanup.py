@@ -352,12 +352,13 @@ class OpenVINOCleanup:
         self.config = config
         self._generation_lock = threading.Lock()
         self.prompt_lookup = True
+        device = config.get("cleanup_device", "GPU")
         try:
-            self.pipe = genai.LLMPipeline(str(path), "GPU", prompt_lookup=True,
+            self.pipe = genai.LLMPipeline(str(path), device, prompt_lookup=True,
                                          CACHE_DIR=str(path.parent / "ov-cache"))
         except Exception:
             self.prompt_lookup = False
-            self.pipe = genai.LLMPipeline(str(path), "GPU", CACHE_DIR=str(path.parent / "ov-cache"))
+            self.pipe = genai.LLMPipeline(str(path), device, CACHE_DIR=str(path.parent / "ov-cache"))
         self.tokenizer = self.pipe.get_tokenizer()
         # Verify a hard non-thinking template, not only a soft /no_think prompt.
         probe = self.tokenizer.apply_chat_template(
