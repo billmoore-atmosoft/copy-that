@@ -32,6 +32,9 @@ CACHE_DIR = CONFIG_DIR / "ov-cache"
 DEFAULT_CONFIG = {
     "theme": "system",
     "device": "NPU",           # NPU, GPU, CPU
+    "device_auto": True,       # Use the model's preferred device at launch; false keeps "device"
+    "decoder_device": "GPU",   # Parakeet decoder: GPU or CPU
+    "cleanup_device": "GPU",   # Polish model: GPU or CPU
     "model_size": "base",      # base, small, medium (large not supported on NPU)
     "language": "en",          # Language code or "auto"
     "hotkey": "ctrl+win",      # Hold to record; Space locks; Escape cancels
@@ -289,6 +292,9 @@ def validate_config(config: dict):
     valid_devices = {"NPU", "GPU", "CPU"}
     if config.get("device") not in valid_devices:
         raise ValueError(f"device must be one of {valid_devices}, got '{config.get('device')}'")
+    for key in ("decoder_device", "cleanup_device"):
+        if config.get(key, "GPU") not in {"GPU", "CPU"}:
+            raise ValueError(f"{key} must be GPU or CPU, got '{config.get(key)}'")
 
     valid_models = set(MODEL_REGISTRY.keys())
     if config.get("model_size") not in valid_models:
@@ -438,14 +444,14 @@ class ParakeetNPU:
     LSTM_DIM = 640
     DECODE_SPACE = re.compile(r"\A\s|\s\B|(\s)\b")
 
-    def __init__(self, model_path: Path, device: str = "NPU"):
+    def __init__(self, model_path: Path, device: str = "NPU", decoder_device: str = "GPU"):
         self.model_path = model_path
         self.device = device
         self.vocab: dict[int, str] = {}
         self.preproc = None  # onnxruntime session
         self.enc_compiled = None  # OpenVINO compiled encoder
         self.dec_compiled = None  # OpenVINO compiled decoder
-        self.decoder_device = "GPU"
+        self.decoder_device = decoder_device
         self.enc_time_dim = 0  # encoder output time dimension (computed at load)
         self._load_pipeline()
 
@@ -464,7 +470,7 @@ class ParakeetNPU:
 
     def _load_pipeline(self):
         """Load preprocessor, encoder, and decoder."""
-        log(f"Loading Parakeet TDT pipeline (encoder on {self.device}, decoder on GPU)...")
+        log(f"Loading Parakeet TDT pipeline (encoder on {self.device}, decoder on {self.decoder_device})...")
         start = time.time()
 
         # 1. Load vocabulary
@@ -533,7 +539,7 @@ class ParakeetNPU:
             self.enc_time_dim = dummy_out["outputs"].shape[2]
             log(f"  Encoder output: [1, {self.ENC_DIM}, {self.enc_time_dim}]")
 
-            # 4. Load decoder on GPU (1.8x faster than CPU for sequential loop)
+            # 4. Load decoder on the decoder device (GPU is 1.8x faster than CPU for the sequential loop)
             decoder_path = self.model_path / "decoder_joint-model.onnx"
             decoder_model = core.read_model(str(decoder_path))
             decoder_model.reshape({
@@ -545,11 +551,11 @@ class ParakeetNPU:
             })
             try:
                 self.dec_compiled = core.compile_model(
-                    decoder_model, "GPU", {"CACHE_DIR": str(CACHE_DIR)}
+                    decoder_model, self.decoder_device, {"CACHE_DIR": str(CACHE_DIR)}
                 )
-                log(f"  Decoder compiled on GPU")
+                log(f"  Decoder compiled on {self.decoder_device}")
             except Exception as e:
-                log(f"  Decoder failed on GPU: {e}, falling back to CPU")
+                log(f"  Decoder failed on {self.decoder_device}: {e}, falling back to CPU")
                 self.dec_compiled = core.compile_model(decoder_model, "CPU")
                 self.decoder_device = "CPU"
                 log(f"  Decoder compiled on CPU")
@@ -737,19 +743,28 @@ class ParakeetNPU:
         return text
 
 
-def create_model(model_path: Path, device: str, backend: str):
+def launch_device(config: dict) -> str:
+    """The device for this launch: the model's preferred device while
+    device_auto is on, otherwise the device the user saved."""
+    if config.get("device_auto", True):
+        return MODEL_REGISTRY[config["model_size"]]["preferred_device"]
+    return config["device"]
+
+
+def create_model(model_path: Path, device: str, backend: str, **parakeet_options):
     """Factory function to create the right model class based on backend.
 
     Args:
         model_path: Path to model directory.
         device: Device string (NPU, GPU, CPU).
         backend: "whisper" or "parakeet" from MODEL_REGISTRY.
+        parakeet_options: Extra Parakeet settings, such as decoder_device. Whisper ignores them.
 
     Returns:
         WhisperNPU or ParakeetNPU instance.
     """
     if backend == "parakeet":
-        return ParakeetNPU(model_path, device=device)
+        return ParakeetNPU(model_path, device=device, **parakeet_options)
     return WhisperNPU(model_path, device=device)
 
 
@@ -1213,7 +1228,10 @@ class DictationApp(DictationRuntime):
             from model_store import verify
             verify(model_path)
             info = MODEL_REGISTRY[self.config["model_size"]]
-            self.whisper = create_model(model_path, device=self.config["device"], backend=info["backend"])
+            options = {}
+            if self.config.get("decoder_device", "GPU") != "GPU":
+                options["decoder_device"] = self.config["decoder_device"]
+            self.whisper = create_model(model_path, device=self.config["device"], backend=info["backend"], **options)
 
 
 # ---------------------------------------------------------------------------
