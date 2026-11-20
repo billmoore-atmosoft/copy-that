@@ -8,7 +8,7 @@ Speech recognition uses OpenVINO. Parakeet runs entirely on the Intel GPU, which
 
 On first launch, a welcome window offers the recommended pair: Parakeet for speech (2.5 GB) and Qwen3 4B for Polish (2.3 GB). One click downloads both from Hugging Face, Parakeet first. Dictation starts as soon as Parakeet finishes, and Polish turns on when Qwen finishes. Every model downloads a pinned revision, the build that was tested.
 
-Developed and tested on Windows 11 with an Intel GPU and NPU. Other hardware is untested.
+Developed and tested on Windows 11 with an Intel GPU and NPU. On a PC without an Intel GPU, CopyThat runs on the CPU. One contributor's tests on a fast desktop CPU found speech recognition quick, and Polish slower on long takes ([#13](https://github.com/scottheffield/copy-that/issues/13)). NVIDIA and AMD GPUs aren't used ([#26](https://github.com/scottheffield/copy-that/issues/26)). Other setups are untested.
 
 ## Install
 
